@@ -44,10 +44,13 @@ except Exception as e:
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
-    # Using the most stable model from your list
-    model = genai.GenerativeModel('gemini-2.0-flash-lite')
-except:
-    st.warning("⚠️ Running in Offline Mode (API Key Missing or Error)")
+    # Testing with a very stable model name
+    model = genai.GenerativeModel('gemini-1.5-flash') 
+    # Aik test message bhej kar check karte hain
+    test_res = model.generate_content("test")
+    st.sidebar.success("✅ Gemini AI is Connected!")
+except Exception as e:
+    st.sidebar.error(f"❌ AI Connection Failed: {str(e)}")
     model = None
 
 # --- HYBRID BOT LOGIC ---
@@ -111,26 +114,16 @@ def get_response(user_input):
         return f"🛒 **{matched_pizza['pizza_name']}** cart mein add ho gaya! (Total: ${matched_pizza['unit_price']})\n\nAb apna **Delivery Address** bataein:"
 
     # 7. SMART AI FALLBACK
+    # 7. SMART AI FALLBACK (Direct Call)
     if model:
         try:
-            # Building context so AI knows what happened
-            order_context = "No active orders."
-            if st.session_state.active_orders:
-                order_context = str(st.session_state.active_orders)
-            
-            prompt = f"""
-            You are 'Pizza Online Assistant'. User Name: Zaib.
-            Current Orders: {order_context}
-            User Message: {user_input}
-            Rules: Only talk about this pizza shop. We only do Cash on Delivery (COD). 
-            If they ask about payment or time, answer naturally.
-            """
-            response = model.generate_content(prompt)
+            # Simple prompt for testing
+            full_prompt = f"User Zaib says: {user_input}. You are a Pizza bot. Answer in 1 line."
+            response = model.generate_content(full_prompt)
             return response.text
         except Exception as e:
-            return "Bot is thinking... Type 'menu' or a pizza name to continue!"
-    
-    return "I only understand pizza orders and menu requests right now."
+            # Ye line aapko bataye gi ke AI kyu nahi chal raha
+            return f"AI Logic Error: {str(e)[:100]}"
 
 # --- UI INTERFACE ---
 for message in st.session_state.messages:
@@ -147,3 +140,4 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
