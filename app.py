@@ -26,16 +26,33 @@ df = load_data()
 # --- DIRECT API CALL FUNCTION (No library needed) ---
 def call_gemini_api(prompt):
     api_key = st.secrets["GEMINI_API_KEY"]
+    base_url = "https://generativelanguage.googleapis.com/v1beta"
     
-    # UPDATE: Hum 'v1' stable use karenge aur model ka full path denge
-    # Agar flash nahi chal raha, toh 'gemini-1.5-pro' lazmi chalega
-    model_name = "gemini-1.5-flash" 
-    url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={api_key}"
-    
+    # --- STEP 1: GET AVAILABLE MODELS ---
+    list_url = f"{base_url}/models?key={api_key}"
+    try:
+        models_resp = requests.get(list_url).json()
+        # Hum dhoondenge ke list mein kaunsa model 'generateContent' support karta hai
+        available_models = [m['name'] for m in models_resp.get('models', []) 
+                            if 'generateContent' in m.get('supportedGenerationMethods', [])]
+        
+        if not available_models:
+            return "AI Error: No compatible models found in your project."
+        
+        # Sab se behtar model select karna (Prefer Flash or Pro)
+        selected_model = available_models[0] 
+        for m in available_models:
+            if "flash" in m:
+                selected_model = m
+                break
+    except Exception as e:
+        return f"Discovery Error: {str(e)}"
+
+    # --- STEP 2: CALL THE SELECTED MODEL ---
+    gen_url = f"{base_url}/{selected_model}:generateContent?key={api_key}"
     headers = {'Content-Type': 'application/json'}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        # Safety settings add karna zaroori hai taake 'candidates' error na aaye
         "safetySettings": [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"}
@@ -43,19 +60,13 @@ def call_gemini_api(prompt):
     }
     
     try:
-        response = requests.post(url, headers=headers, json=payload)
+        response = requests.post(gen_url, headers=headers, json=payload)
         result = response.json()
-        
         if 'candidates' in result:
             return result['candidates'][0]['content']['parts'][0]['text']
-        elif 'error' in result:
-            # Agar 1.5-flash nahi mil raha, toh automatic 1.0-pro par switch karein
-            return f"Model Error: {result['error']['message']}. Try updating your API Key in Google AI Studio."
-        else:
-            return "AI is currently busy baking pizzas! Try again in a second."
-            
-    except Exception as e:
-        return "Connection timeout. Checking internet..."
+        return f"Error: {result.get('error', {}).get('message', 'Unknown response format')}"
+    except:
+        return "AI is taking a break. Use 'menu' to order manually!"
 # --- BOT LOGIC ---
 def get_response(user_input):
     ui = user_input.lower().strip()
@@ -104,6 +115,7 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
