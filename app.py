@@ -40,19 +40,22 @@ except Exception as e:
     st.error(f"CSV Load Error: {e}")
     st.stop()
 
-# --- AI SETUP ---
+# --- AI SETUP (Paste this in your Cell/App) ---
 try:
+    # 1. Get Key from Secrets
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
-    # Testing with a very stable model name
-    model = genai.GenerativeModel('gemini-1.5-flash') 
-    # Aik test message bhej kar check karte hain
-    test_res = model.generate_content("test")
-    st.sidebar.success("✅ Gemini AI is Connected!")
+    
+    # 2. Use 'gemini-pro' - It is the most compatible version
+    model = genai.GenerativeModel('gemini-pro') 
+    
+    # 3. Connection Test
+    test_res = model.generate_content("Hi")
+    st.sidebar.success("✅ Gemini AI is Now Online!")
 except Exception as e:
-    st.sidebar.error(f"❌ AI Connection Failed: {str(e)}")
+    # Agar abhi bhi error aaye, toh exact detail sidebar mein dikhay ga
+    st.sidebar.error(f"❌ Connection Error: {str(e)}")
     model = None
-
 # --- HYBRID BOT LOGIC ---
 def get_response(user_input):
     ui = user_input.lower().strip()
@@ -113,17 +116,28 @@ def get_response(user_input):
         st.session_state.waiting_for_address = oid
         return f"🛒 **{matched_pizza['pizza_name']}** cart mein add ho gaya! (Total: ${matched_pizza['unit_price']})\n\nAb apna **Delivery Address** bataein:"
 
-    # 7. SMART AI FALLBACK
-    # 7. SMART AI FALLBACK (Direct Call)
+ # --- PART 7: SMART AI FALLBACK (Updated) ---
+def get_ai_fallback(user_input):
     if model:
         try:
-            # Simple prompt for testing
-            full_prompt = f"User Zaib says: {user_input}. You are a Pizza bot. Answer in 1 line."
-            response = model.generate_content(full_prompt)
+            # Building a clean prompt without complex chat history objects
+            order_summary = "None"
+            if st.session_state.active_orders:
+                order_summary = str(st.session_state.active_orders)
+
+            prompt = f"""
+            You are 'Pizza Online Assistant' for Zaib's shop.
+            Current Orders: {order_summary}
+            User Question: {user_input}
+            Rules: Only talk about pizza and the shop. Be very short (1-2 lines).
+            """
+            
+            # Simple direct generation is more stable than chat.send_message
+            response = model.generate_content(prompt)
             return response.text
         except Exception as e:
-            # Ye line aapko bataye gi ke AI kyu nahi chal raha
-            return f"AI Logic Error: {str(e)[:100]}"
+            return f"AI is thinking... (Details: {str(e)[:50]})"
+    return "Offline Mode: Type 'menu' or a pizza name to continue."
 
 # --- UI INTERFACE ---
 for message in st.session_state.messages:
@@ -140,4 +154,5 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
