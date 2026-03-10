@@ -7,18 +7,18 @@ import datetime
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Pizza Online AI", page_icon="🍕", layout="centered")
 
-# --- CUSTOM CSS FOR "GOOD LOOKS" ---
+# --- CUSTOM CSS ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; }
     .stChatMessage { border-radius: 15px; border: 1px solid #30363d; margin-bottom: 10px; }
+    h1 { color: #FF4B4B; text-shadow: 2px 2px #000000; font-family: 'Arial'; }
     .stChatInput { border-radius: 20px; }
-    h1 { color: #FF4B4B; text-shadow: 2px 2px #000000; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🍕 Pizza Online Assistant")
-st.caption("Freshly baked AI logic for Zaib's Pizza Shop")
+st.caption("Advanced Hybrid AI Logic | User: Zaib")
 
 # --- INITIALIZE SESSION STATE ---
 if "messages" not in st.session_state:
@@ -31,51 +31,72 @@ if "waiting_for_address" not in st.session_state:
 # --- LOAD DATA ---
 @st.cache_data
 def load_data():
-    # Make sure your CSV is in the same folder as app.py
     return pd.read_csv('pizza_sales.csv')
 
 try:
     df = load_data()
+    unique_menu = df[['pizza_name', 'unit_price']].drop_duplicates('pizza_name').sort_values('unit_price')
 except Exception as e:
-    st.error(f"Data file not found: {e}")
+    st.error(f"CSV Load Error: {e}")
     st.stop()
 
 # --- AI SETUP ---
 try:
-    # Use st.secrets for deployment, fallback to string for local testing
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
+    # Using the most stable model from your list
     model = genai.GenerativeModel('gemini-2.0-flash-lite')
-except Exception as e:
-    st.warning("AI Configuration Error. Bot will run in 'Offline Mode'.")
+except:
+    st.warning("⚠️ Running in Offline Mode (API Key Missing or Error)")
     model = None
 
 # --- HYBRID BOT LOGIC ---
 def get_response(user_input):
-    user_input = user_input.lower().strip()
+    ui = user_input.lower().strip()
     
-    # 1. ADDRESS CAPTURE
+    # 1. GLOBAL CANCEL/REMOVE LOGIC
+    if any(word in ui for word in ["cancel", "remove", "delete", "stop"]):
+        if st.session_state.active_orders:
+            last_id = list(st.session_state.active_orders.keys())[-1]
+            removed_item = st.session_state.active_orders[last_id]['name']
+            del st.session_state.active_orders[last_id]
+            st.session_state.waiting_for_address = None
+            return f"🗑️ Done Zaib! Aapka order ({removed_item}) cart se remove kar diya gaya hai."
+        return "Aapka cart pehle hi khali hai!"
+
+    # 2. ADDRESS CAPTURE
     if st.session_state.waiting_for_address:
-        order_id = st.session_state.waiting_for_address
-        st.session_state.active_orders[order_id]['address'] = user_input
-        st.session_state.active_orders[order_id]['status'] = "Confirmed"
+        if len(ui) < 5:
+            return "❌ Address bohat chota hai. Please provide a full delivery address:"
+        
+        oid = st.session_state.waiting_for_address
+        st.session_state.active_orders[oid].update({"address": user_input, "status": "Confirmed"})
         st.session_state.waiting_for_address = None
-        return f"✅ **Order Confirmed, Zaib!**\n\nYour order **{order_id}** will be delivered to: `{user_input}` via Cash on Delivery."
+        return f"✅ **Zabardast Zaib!** Order **{oid}** confirmed ho gaya hai. Hum jald hi aapke address `{user_input}` par pohnchain ge. (COD Only)"
 
-    # 2. LOCAL LOGIC: MENU
-    if any(x in user_input for x in ["menu", "list"]):
-        menu = df[['pizza_name', 'unit_price']].drop_duplicates('pizza_name').head(12)
-        return "### 🍕 Our Professional Menu\n" + menu.to_string(index=False)
+    # 3. LOCAL LOGIC: MENU
+    if any(x in ui for x in ["menu", "list", "items"]):
+        items = unique_menu.head(12)
+        return "### 🍕 Official Pizza Menu\n" + items.to_string(index=False)
 
-    # 3. LOCAL LOGIC: LOWEST PRICE (Fixes your specific query)
-    if "lowest" in user_input or "cheapest" in user_input:
-        cheapest = df.loc[df['unit_price'].idxmin()]
-        return f"🤑 The most budget-friendly option is the **{cheapest['pizza_name']}** at only **${cheapest['unit_price']}**! Want to order it?"
+    # 4. LOCAL LOGIC: PRICE / STATUS
+    if any(x in ui for x in ["price", "total", "bill", "status", "track"]):
+        if st.session_state.active_orders:
+            res = "### 📋 Your Current Orders:\n"
+            for oid, data in st.session_state.active_orders.items():
+                res += f"- **{data['name']}**: ${data['price']} | Status: {data['status']}\n"
+            return res
+        return "Abhi tak koi order nahi mila. Menu dekhne ke liye 'menu' likhain."
 
-    # 4. ORDERING SYSTEM
+    # 5. LOCAL LOGIC: LOWEST/FIRST
+    if "lowest" in ui or "cheapest" in ui or "1st" in ui:
+        cheapest = unique_menu.iloc[0]
+        return f"🤑 Humara sab se sasta pizza **{cheapest['pizza_name']}** hai, sirf **${cheapest['unit_price']}** mein. Kya main ye order kar doon?"
+
+    # 6. ORDERING SYSTEM (CSV MATCHING)
     matched_pizza = None
-    for _, row in df.iterrows():
-        if row['pizza_name'].lower() in user_input:
+    for _, row in unique_menu.iterrows():
+        if row['pizza_name'].lower() in ui:
             matched_pizza = row
             break
             
@@ -84,27 +105,39 @@ def get_response(user_input):
         st.session_state.active_orders[oid] = {
             "name": matched_pizza['pizza_name'],
             "price": matched_pizza['unit_price'],
-            "status": "Awaiting Address"
+            "status": "Waiting for Address"
         }
         st.session_state.waiting_for_address = oid
-        return f"🛒 **{matched_pizza['pizza_name']}** added to cart!\n\n**Total: ${matched_pizza['unit_price']}**\n\nPlease enter your **Delivery Address** to finalize:"
+        return f"🛒 **{matched_pizza['pizza_name']}** cart mein add ho gaya! (Total: ${matched_pizza['unit_price']})\n\nAb apna **Delivery Address** bataein:"
 
-    # 5. AI FALLBACK
+    # 7. SMART AI FALLBACK
     if model:
         try:
-            prompt = f"Role: Pizza Shop Assistant. Context: {user_input}. Note: We only do Cash on Delivery."
+            # Building context so AI knows what happened
+            order_context = "No active orders."
+            if st.session_state.active_orders:
+                order_context = str(st.session_state.active_orders)
+            
+            prompt = f"""
+            You are 'Pizza Online Assistant'. User Name: Zaib.
+            Current Orders: {order_context}
+            User Message: {user_input}
+            Rules: Only talk about this pizza shop. We only do Cash on Delivery (COD). 
+            If they ask about payment or time, answer naturally.
+            """
             response = model.generate_content(prompt)
             return response.text
-        except:
-            return "I'm a bit overwhelmed! Try asking for the 'menu' or naming a pizza."
-    return "Offline Mode: Please ask for the 'menu' or name a specific pizza."
+        except Exception as e:
+            return "Bot is thinking... Type 'menu' or a pizza name to continue!"
+    
+    return "I only understand pizza orders and menu requests right now."
 
 # --- UI INTERFACE ---
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("How can I help you today?"):
+if prompt := st.chat_input("Ask for menu or order a pizza..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
