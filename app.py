@@ -27,36 +27,32 @@ df = load_data()
 def call_gemini_api(prompt):
     api_key = st.secrets["GEMINI_API_KEY"]
     
-    # UPDATE: Using v1 instead of v1beta and adding models/ prefix inside the URL
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+    # UPDATE: Using 'gemini-1.0-pro' because 1.5-flash is not being found in your project
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent?key={api_key}"
     
     headers = {'Content-Type': 'application/json'}
     
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "safetySettings": [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
-        ]
+        # Safety settings are kept empty to avoid any rejection
+        "safetySettings": [] 
     }
     
     try:
         response = requests.post(url, headers=headers, json=payload)
         result = response.json()
         
-        # Checking if the response is successful
+        # Checking for successful response
         if 'candidates' in result:
             return result['candidates'][0]['content']['parts'][0]['text']
         elif 'error' in result:
-            # Agar abhi bhi model not found aaye, toh hum alternative model try karte hain
-            return f"API Error: {result['error']['message']}"
+            # Displaying the exact model list if it fails again
+            return f"Model Error: {result['error']['message']}. Please check AI Studio."
         else:
-            return "AI is busy. Type 'menu' to continue ordering manually."
+            return "AI is sleeping. But the Pizza Oven is ON! Use 'menu' to order."
             
     except Exception as e:
-        return f"Connection lost. Please try again."
+        return "Connection Error. Please try again later."
 # --- BOT LOGIC ---
 def get_response(user_input):
     ui = user_input.lower().strip()
@@ -105,5 +101,6 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
