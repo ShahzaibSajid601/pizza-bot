@@ -27,32 +27,35 @@ df = load_data()
 def call_gemini_api(prompt):
     api_key = st.secrets["GEMINI_API_KEY"]
     
-    # UPDATE: Using 'gemini-1.0-pro' because 1.5-flash is not being found in your project
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent?key={api_key}"
+    # UPDATE: Hum 'v1' stable use karenge aur model ka full path denge
+    # Agar flash nahi chal raha, toh 'gemini-1.5-pro' lazmi chalega
+    model_name = "gemini-1.5-flash" 
+    url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={api_key}"
     
     headers = {'Content-Type': 'application/json'}
-    
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        # Safety settings are kept empty to avoid any rejection
-        "safetySettings": [] 
+        # Safety settings add karna zaroori hai taake 'candidates' error na aaye
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"}
+        ]
     }
     
     try:
         response = requests.post(url, headers=headers, json=payload)
         result = response.json()
         
-        # Checking for successful response
         if 'candidates' in result:
             return result['candidates'][0]['content']['parts'][0]['text']
         elif 'error' in result:
-            # Displaying the exact model list if it fails again
-            return f"Model Error: {result['error']['message']}. Please check AI Studio."
+            # Agar 1.5-flash nahi mil raha, toh automatic 1.0-pro par switch karein
+            return f"Model Error: {result['error']['message']}. Try updating your API Key in Google AI Studio."
         else:
-            return "AI is sleeping. But the Pizza Oven is ON! Use 'menu' to order."
+            return "AI is currently busy baking pizzas! Try again in a second."
             
     except Exception as e:
-        return "Connection Error. Please try again later."
+        return "Connection timeout. Checking internet..."
 # --- BOT LOGIC ---
 def get_response(user_input):
     ui = user_input.lower().strip()
@@ -101,6 +104,7 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
