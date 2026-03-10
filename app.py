@@ -40,21 +40,27 @@ except Exception as e:
     st.error(f"CSV Load Error: {e}")
     st.stop()
 
-# --- AI SETUP (The Fix for 2026) ---
+# --- AI SETUP (Universal Compatibility) ---
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
     
-    # Hum 'gemini-1.5-flash-latest' use karenge jo har version par chalta hai
-    model = genai.GenerativeModel('gemini-1.5-flash-latest') 
+    # Hum 'gemini-pro' use karenge lekin bina 'models/' prefix ke
+    # Kuch environments mein sirf 'gemini-pro' likhna kaam kar jata hai
+    model = genai.GenerativeModel('gemini-pro') 
     
-    # Test connection
-    test_res = model.generate_content("Are you active?")
-    st.sidebar.success("✅ Gemini AI is Now Online!")
+    # Connection test
+    test_res = model.generate_content("Hi")
+    st.sidebar.success("✅ Gemini AI Connected!")
 except Exception as e:
-    # Agar abhi bhi error aaye toh poora message sidebar mein dekhein
-    st.sidebar.error(f"❌ AI Error: {str(e)}")
-    model = None
+    # Agar 404 aaye, toh hum model ka naam 'chat-bison-001' try karte hain (Legacy support)
+    try:
+        model = genai.GenerativeModel('chat-bison-001')
+        model.generate_content("Hi")
+        st.sidebar.warning("⚠️ Running on Legacy Model")
+    except:
+        st.sidebar.error(f"❌ Connection Error: {str(e)}")
+        model = None
     
 # --- HYBRID BOT LOGIC ---
 def get_response(user_input):
@@ -142,6 +148,7 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
