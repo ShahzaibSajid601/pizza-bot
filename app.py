@@ -6,7 +6,7 @@ import random
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Pizza Online AI", page_icon="🍕")
-st.title("🍕 Pizza Online Assistant")
+st.title("Pizza Online Assistant")
 
 # --- INITIALIZE SESSION STATE ---
 if "messages" not in st.session_state:
@@ -115,6 +115,7 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
