@@ -26,24 +26,34 @@ df = load_data()
 # --- DIRECT API CALL FUNCTION (No library needed) ---
 def call_gemini_api(prompt):
     api_key = st.secrets["GEMINI_API_KEY"]
-    # We use the most stable API endpoint directly
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     
     headers = {'Content-Type': 'application/json'}
+    
+    # --- ADDED SAFETY SETTINGS TO AVOID 'CANDIDATES' ERROR ---
     payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }]
+        "contents": [{"parts": [{"text": prompt}]}],
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+        ]
     }
     
     try:
         response = requests.post(url, headers=headers, json=payload)
         result = response.json()
-        # Extracting the text from Google's JSON response
+        
+        # Debugging check: if candidates missing, show the full error
+        if 'candidates' not in result:
+            if 'error' in result:
+                return f"Google API Error: {result['error']['message']}"
+            return "Google blocked this message for safety. Try saying 'Hello' again."
+            
         return result['candidates'][0]['content']['parts'][0]['text']
     except Exception as e:
-        return f"AI is offline, but I can still take orders! (Error: {str(e)[:50]})"
-
+        return f"System is busy. Please try again in 5 seconds."
 # --- BOT LOGIC ---
 def get_response(user_input):
     ui = user_input.lower().strip()
@@ -92,3 +102,4 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
