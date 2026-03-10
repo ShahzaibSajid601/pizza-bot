@@ -25,7 +25,7 @@ df = load_data()
 
 # --- AI SETUP ---
 # On Deployment, we hide the API Key in "Secrets"
-genai.configure(api_key=st.secrets["AIzaSyB3k0JR3CRrlQH7P8ed3CXbBSFfKi4CE5I"])
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 model = genai.GenerativeModel('gemini-2.0-flash-lite')
 
 # --- BOT LOGIC ---
@@ -80,4 +80,5 @@ if prompt := st.chat_input("Ask me for the menu or order a pizza..."):
     
     with st.chat_message("assistant"):
         st.markdown(response)
+
     st.session_state.messages.append({"role": "assistant", "content": response})
