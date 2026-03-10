@@ -40,28 +40,21 @@ except Exception as e:
     st.error(f"CSV Load Error: {e}")
     st.stop()
 
-# --- AI SETUP (Robust Version) ---
+# --- AI SETUP (The Final Fix) ---
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
-    if not api_key or "AIza" not in api_key:
-        st.sidebar.error("❌ Invalid API Key Format!")
-    
     genai.configure(api_key=api_key)
     
-    # Using 1.5-flash for maximum stability on Free Tier
-    model = genai.GenerativeModel('gemini-1.5-flash') 
+    # Hum 'gemini-pro' use karenge kyunki 404 aksar 1.5-flash par aata hai
+    # Agar 1.5 nahi mil raha, toh Pro lazmi mil jaye ga
+    model = genai.GenerativeModel('gemini-pro') 
     
-    # Test call
-    model.generate_content("ping")
-    st.sidebar.success("✅ AI is Online & Ready!")
+    # Direct test call
+    test_res = model.generate_content("ping")
+    st.sidebar.success("✅ AI is Finally Connected!")
 except Exception as e:
-    error_msg = str(e)
-    if "API_KEY_INVALID" in error_msg:
-        st.sidebar.error("❌ Key Expired! Please generate a NEW one in AI Studio.")
-    elif "429" in error_msg:
-        st.sidebar.warning("⏳ Quota Full! Wait 30 seconds.")
-    else:
-        st.sidebar.error(f"❌ Connection Issue: {error_msg[:50]}")
+    # Agar abhi bhi masla hai toh exact error dekhain
+    st.sidebar.error(f"❌ Connection Error: {str(e)[:100]}")
     model = None
 # --- HYBRID BOT LOGIC ---
 def get_response(user_input):
@@ -149,6 +142,7 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
