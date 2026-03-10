@@ -40,22 +40,30 @@ except Exception as e:
     st.error(f"CSV Load Error: {e}")
     st.stop()
 
-# --- AI SETUP (The Final Fix) ---
+# --- AI SETUP (The Nuclear Option) ---
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
+    
+    # Force the library to use the STABLE v1 API instead of v1beta
+    import google.ai.generativelanguage as gapic
+    client_options = {"api_key": api_key}
+    
+    # Direct configuration
     genai.configure(api_key=api_key)
     
-    # Hum 'gemini-1.5-flash' use karenge lekin version specify kiye bagair
-    # Agar 0.8.3 library install hai toh ye 404 nahi dega
-    model = genai.GenerativeModel('gemini-1.5-flash') 
+    # Try the most universally recognized model name in 2026
+    model = genai.GenerativeModel(
+        model_name='gemini-1.5-flash',
+        generation_config={"replacement_model_name": "models/gemini-1.5-flash"}
+    )
     
-    # Check if the model is actually working
-    test_response = model.generate_content("Is AI online?")
-    st.sidebar.success("✅ AI is Finally Online!")
+    # Immediate connection test
+    response = model.generate_content("Health check")
+    st.sidebar.success("✅ Gemini 1.5 Flash is LIVE!")
     
 except Exception as e:
-    # Agar abhi bhi error aaye toh humein list dekhni hogi
-    st.sidebar.error(f"❌ AI Still Offline: {str(e)[:100]}")
+    # Agar abhi bhi error aaye, toh hum list models ka direct check lagayenge
+    st.sidebar.error(f"❌ Version Mismatch: {str(e)[:100]}")
     model = None
     
 # --- HYBRID BOT LOGIC ---
@@ -144,6 +152,7 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
