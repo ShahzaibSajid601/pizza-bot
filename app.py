@@ -40,20 +40,28 @@ except Exception as e:
     st.error(f"CSV Load Error: {e}")
     st.stop()
 
+# --- AI SETUP (Robust Version) ---
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
+    if not api_key or "AIza" not in api_key:
+        st.sidebar.error("❌ Invalid API Key Format!")
+    
     genai.configure(api_key=api_key)
     
-    # Aapki list ke mutabiq sab se stable model 'gemini-2.0-flash' hai
-    # models/ prefix hata kar direct naam use karein
-    model = genai.GenerativeModel('gemini-2.0-flash') 
+    # Using 1.5-flash for maximum stability on Free Tier
+    model = genai.GenerativeModel('gemini-1.5-flash') 
     
-    # Test message
-    test_res = model.generate_content("test")
-    st.sidebar.success("✅ Gemini 2.0 is Connected!")
+    # Test call
+    model.generate_content("ping")
+    st.sidebar.success("✅ AI is Online & Ready!")
 except Exception as e:
-    # Agar abhi bhi error aaye toh hum check karenge ke list mein se konsa chalega
-    st.sidebar.error(f"❌ Connection Error: {str(e)}")
+    error_msg = str(e)
+    if "API_KEY_INVALID" in error_msg:
+        st.sidebar.error("❌ Key Expired! Please generate a NEW one in AI Studio.")
+    elif "429" in error_msg:
+        st.sidebar.warning("⏳ Quota Full! Wait 30 seconds.")
+    else:
+        st.sidebar.error(f"❌ Connection Issue: {error_msg[:50]}")
     model = None
 # --- HYBRID BOT LOGIC ---
 def get_response(user_input):
@@ -141,6 +149,7 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
