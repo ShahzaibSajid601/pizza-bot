@@ -40,27 +40,23 @@ except Exception as e:
     st.error(f"CSV Load Error: {e}")
     st.stop()
 
-# --- AI SETUP (Universal Compatibility) ---
+# --- AI SETUP (The Final Fix) ---
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
     
-    # Hum 'gemini-pro' use karenge lekin bina 'models/' prefix ke
-    # Kuch environments mein sirf 'gemini-pro' likhna kaam kar jata hai
-    model = genai.GenerativeModel('gemini-pro') 
+    # Hum 'gemini-1.5-flash' use karenge lekin version specify kiye bagair
+    # Agar 0.8.3 library install hai toh ye 404 nahi dega
+    model = genai.GenerativeModel('gemini-1.5-flash') 
     
-    # Connection test
-    test_res = model.generate_content("Hi")
-    st.sidebar.success("✅ Gemini AI Connected!")
+    # Check if the model is actually working
+    test_response = model.generate_content("Is AI online?")
+    st.sidebar.success("✅ AI is Finally Online!")
+    
 except Exception as e:
-    # Agar 404 aaye, toh hum model ka naam 'chat-bison-001' try karte hain (Legacy support)
-    try:
-        model = genai.GenerativeModel('chat-bison-001')
-        model.generate_content("Hi")
-        st.sidebar.warning("⚠️ Running on Legacy Model")
-    except:
-        st.sidebar.error(f"❌ Connection Error: {str(e)}")
-        model = None
+    # Agar abhi bhi error aaye toh humein list dekhni hogi
+    st.sidebar.error(f"❌ AI Still Offline: {str(e)[:100]}")
+    model = None
     
 # --- HYBRID BOT LOGIC ---
 def get_response(user_input):
@@ -148,6 +144,7 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
