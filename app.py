@@ -40,22 +40,22 @@ except Exception as e:
     st.error(f"CSV Load Error: {e}")
     st.stop()
 
-# --- AI SETUP (The Final Fix) ---
+# --- AI SETUP (The Fix for 2026) ---
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
     
-    # Hum 'gemini-pro' use karenge kyunki 404 aksar 1.5-flash par aata hai
-    # Agar 1.5 nahi mil raha, toh Pro lazmi mil jaye ga
-    model = genai.GenerativeModel('gemini-pro') 
+    # Hum 'gemini-1.5-flash-latest' use karenge jo har version par chalta hai
+    model = genai.GenerativeModel('gemini-1.5-flash-latest') 
     
-    # Direct test call
-    test_res = model.generate_content("ping")
-    st.sidebar.success("✅ AI is Finally Connected!")
+    # Test connection
+    test_res = model.generate_content("Are you active?")
+    st.sidebar.success("✅ Gemini AI is Now Online!")
 except Exception as e:
-    # Agar abhi bhi masla hai toh exact error dekhain
-    st.sidebar.error(f"❌ Connection Error: {str(e)[:100]}")
+    # Agar abhi bhi error aaye toh poora message sidebar mein dekhein
+    st.sidebar.error(f"❌ AI Error: {str(e)}")
     model = None
+    
 # --- HYBRID BOT LOGIC ---
 def get_response(user_input):
     ui = user_input.lower().strip()
@@ -142,6 +142,7 @@ if prompt := st.chat_input("Ask for menu or order a pizza..."):
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
